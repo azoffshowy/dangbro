@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>webOS Dangbro</title>
+  <link rel="stylesheet" href="./guided-terminal.css" />
+</head>
+<body>
+  <main class="shell">
+    <section id="fileProtocolNotice" class="panel" hidden>
+      <div class="panel-title">local file mode blocked</div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">SSAP dangbro</div>
+      <div class="toolbar">
+        <input id="tvIp" class="ip-input" placeholder="tv ip, e.g. 192.168.1.50" />
+        <button id="connectBtn">connect</button>
+        <span class="statusline"><span id="statusDot" class="dot"></span><span id="statusText">idle</span></span>
+      </div>
+      <div class="subline">After registration the page launches automatically through `dangbei-overlay`.</div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">state</div>
+      <pre id="log" class="terminal"></pre>
+    </section>
+  </main>
+
+  <div id="modal" class="overlay" hidden>
+    <div class="dialog">
+      <div id="modalTitle" class="dialog-title">connecting</div>
+      <pre id="modalBody" class="dialog-body"></pre>
+      <div class="dialog-actions">
+        <button id="modalPrimaryBtn">retry</button>
+        <button id="modalSecondaryBtn">open cert</button>
+        <button id="modalHelpBtn">browser guide</button>
+        <button id="modalDismissBtn">close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (window.location.protocol === 'file:') {
+      document.getElementById('fileProtocolNotice').hidden = false;
+    } else {
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.src = './dangbro.js';
+      document.body.appendChild(script);
+    }
+  </script>
+</body>
+</html>
