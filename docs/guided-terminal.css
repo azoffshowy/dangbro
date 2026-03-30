@@ -54,7 +54,6 @@ textarea {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   color: var(--bright);
-  text-transform: lowercase;
   letter-spacing: 0.08em;
 }
 

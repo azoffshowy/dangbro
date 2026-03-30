@@ -424,6 +424,5 @@ tvIpEl.addEventListener('keyup', () => localStorage.setItem('webos-last-ip', tvI
   const savedIp = localStorage.getItem('webos-last-ip') || '';
   if (savedIp) tvIpEl.value = savedIp;
   setStatus('', 'Idle');
-  log('boot', 'dangbro page ready.');
-  log('boot', `Auto-launch target is ${targetUrl}`);
+  log('boot', 'DangBro page ready.');
 })();
