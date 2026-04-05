@@ -9,7 +9,8 @@ const connectBtn = $('connectBtn');
 const CONNECT_TIMEOUT_MS = 7000;
 const CERT_HELP_URL = 'https://help.motorolanetwork.com/kb/general/troubleshooting-connection-isn-t-private-message';
 const CLIENT_KEY_PREFIX = 'webos-ssap-client-key:';
-const targetUrl = new URL('./resources/dangbro/', window.location.href).toString();
+const debugMode = new URLSearchParams(window.location.search).has('debug');
+const targetUrl = new URL('./resources/dangbro/' + (debugMode ? '?debug' : ''), window.location.href).toString();
 
 const state = {
   attempt: 0,
@@ -24,6 +25,11 @@ function log(kind, data) {
   const text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
   logEl.textContent += `[${kind}] ${text}\n\n`;
   logEl.scrollTop = logEl.scrollHeight;
+}
+
+function debugLog(kind, data) {
+  if (!debugMode) return;
+  log(kind, data);
 }
 
 function setStatus(type, text) {
@@ -273,7 +279,7 @@ async function launchDangbro() {
     }
   };
 
-  log('request', {
+  debugLog('request', {
     uri: 'ssap://system.launcher/launch',
     payload
   });
@@ -284,7 +290,7 @@ async function launchDangbro() {
     throw new Error('Dangbro launch timed out');
   }
 
-  log('response', response.payload || response);
+  debugLog('response', response.payload || response);
   setStatus('ok', 'Connected, launch sent');
 }
 
@@ -298,7 +304,7 @@ bridge.addEventListener('open', () => {
     return;
   }
 
-  log('pair', 'Using stored client key. Waiting for registration result.');
+  debugLog('pair', 'Using stored client key. Waiting for registration result.');
 });
 
 bridge.addEventListener('error', () => {
@@ -424,5 +430,5 @@ tvIpEl.addEventListener('keyup', () => localStorage.setItem('webos-last-ip', tvI
   const savedIp = localStorage.getItem('webos-last-ip') || '';
   if (savedIp) tvIpEl.value = savedIp;
   setStatus('', 'Idle');
-  log('boot', 'DangBro page ready.');
+  log('boot', 'DangBro page ready.' + (debugMode ? ' [debug mode — log upload enabled]' : ''));
 })();

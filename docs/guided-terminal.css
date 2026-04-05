@@ -113,6 +113,25 @@ button:hover {
   font-size: 14px;
 }
 
+.footer-links {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.footer-link {
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.footer-link:hover {
+  text-decoration: underline;
+}
+
 .dot {
   width: 10px;
   height: 10px;
