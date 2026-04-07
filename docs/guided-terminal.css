@@ -57,6 +57,19 @@ textarea {
   letter-spacing: 0.08em;
 }
 
+.panel-title-split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-version {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+}
+
 .toolbar {
   display: flex;
   gap: 10px;
