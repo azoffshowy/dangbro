@@ -21,10 +21,12 @@ The exploit path uses the vulnerable `dangbei-overlay` app as well as the `legac
 
 ## Supported webOS
 
+Only TVs with DVB-Tuner!
 Currently confirmed on:
 
-- webOS 25 (`10.3.0`)
+- webOS 25 (`10.2.1`,`10.3.0`)
 - webOS 24 (`9.2.2`)
+- webOS 7 (`7.5.x`)
 
 Other versions may or may not work yet.
 
