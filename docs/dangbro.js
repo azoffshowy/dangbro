@@ -220,6 +220,7 @@ class WebOsSsapBridge extends EventTarget {
             created: '2026-03-30',
             permissions: [
               'TEST_SECURE',
+              'READ_INSTALLED_APPS',
               'READ_RUNNING_APPS',
               'READ_NOTIFICATIONS',
               'READ_NETWORK_STATE',
@@ -236,6 +237,7 @@ class WebOsSsapBridge extends EventTarget {
             'TEST_OPEN',
             'TEST_PROTECTED',
             'READ_APP_STATUS',
+            'READ_INSTALLED_APPS',
             'READ_NETWORK_STATE',
             'READ_RUNNING_APPS',
             'READ_POWER_STATE',
@@ -266,6 +268,36 @@ class WebOsSsapBridge extends EventTarget {
 }
 
 const bridge = new WebOsSsapBridge();
+const BROADCAST_CONFIG_NAMES = ['tv.nyx.tvBroadcastSystem', 'tv.model.sysType'];
+
+async function warnIfDangbeiOverlayMissing() {
+  let response;
+  try {
+    response = await bridge.request('ssap://com.webos.applicationManager/listApps', {}, 5000);
+  } catch (error) {
+    log('warn', 'Could not verify whether dangbei-overlay is installed before launch.');
+    debugLog('warn-detail', error instanceof Error ? error.message : String(error));
+    return;
+  }
+
+  if (response.timeout) {
+    log('warn', 'listApps timed out. Could not verify whether dangbei-overlay is installed.');
+    return;
+  }
+
+  if (response.type === 'error') {
+    log('warn', 'listApps was denied by SSAP (' + (response.error || 'unknown error') + '). The app-presence check is inconclusive.');
+    return;
+  }
+
+  const apps = Array.isArray(response.payload?.apps) ? response.payload.apps : [];
+  const hasDangbeiOverlay = apps.some((app) => app && app.id === 'com.webos.app.dangbei-overlay');
+  if (!hasDangbeiOverlay) {
+    log('warn', 'com.webos.app.dangbei-overlay was not found in listApps. If nothing happens on the TV it is likely not vulnerable.');
+  } else {
+    log('success', 'Confirmed existence of dangbei-overlay app.');
+  }
+}
 
 async function launchDangbro() {
   if (state.launchStarted) return;
@@ -360,6 +392,7 @@ bridge.addEventListener('ssap-message', async (event) => {
   log('connect', state.hadStoredClientKey
     ? 'Connected. Existing client key accepted.'
     : 'Connected. Pairing completed and the TV is ready.');
+  await warnIfDangbeiOverlayMissing();
   log('launch', `Starting automatic dangbei-overlay launch to ${targetUrl}`);
 
   try {

