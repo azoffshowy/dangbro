@@ -21,19 +21,12 @@ The exploit path uses the vulnerable `dangbei-overlay` app as well as the `legac
 
 ## Supported webOS
 
-Only applicable for DVB-tuner TVs (Regions: Europe, Asia (except Japan, South Korea), Africa, Australia, New Zealand, Peru)
+**WebOS 7.x up to WebOS 25**
+
+Only applicable for **DVB-tuner TVs** (Regions: Europe, Asia (except Japan, South Korea), Africa, Australia, New Zealand, Peru)
 The tool checks this automatically.
 
-Currently confirmed on:
-
-- webOS 25 (`10.2.1`,`10.3.0`)
-- webOS 24 (`9.2.2`)
-- webOS 7 (`7.5.x`)
-
-Other versions may or may not work yet.
 If you are unsure if it's applicable for you, it can be tested without risk.
-
-If you try dangbro on another webOS version, please report your TV model, webOS version, and result in the [OpenLGTV Discord](https://discord.gg/hXMHAgJC5R) so compatibility can be tracked and added here.
 
 ## Debug mode
 
